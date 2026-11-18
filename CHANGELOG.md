@@ -1,6 +1,17 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+### Fixes
+- `FullWildcardPrincipalRule` / `GenericResourceFullWildcardPrincipalRule` (and the shared
+  `GenericWildcardPrincipalRule` machinery) now detect suffixless wildcard account principals in
+  trust policies, e.g. `arn:aws:iam::*` and `arn:aws:iam::?`, which previously slipped through
+  while the suffixed form `arn:aws:iam::*:12345` was already flagged.
+- Principals that cannot be resolved because a CloudFormation parameter has no default value
+  (`UNDEFINED_PARAM_*` / `UNDEFINED_MAPPING_*` from `Ref`/`Fn::Join`/`Fn::FindInMap`, or leftover
+  `${...}` variables from `Fn::Sub`) are now treated as wildcard suspects by the wildcard
+  principal rule family. Principals that resolve to concrete values keep their previous behaviour.
+
 ## [1.19.0]
 ### Additions
 - Add support for python 3.14

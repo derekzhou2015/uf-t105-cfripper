@@ -135,3 +135,42 @@ def test_rule_supports_filter_config(bad_template, default_allow_all_config):
 
     assert result.valid
     assert compare_lists_of_failures(result.failures, [])
+
+
+def test_unresolved_parameter_placeholders_in_role_trust_policy_are_flagged():
+    model = get_cfmodel_from("rules/GenericWildcardPrincipalRule/iam_role_trust_unresolved_placeholders.json").resolve()
+    rule = PartialWildcardPrincipalRule(None)
+    result = rule.invoke(model)
+
+    assert not result.valid
+    assert compare_lists_of_failures(
+        result.failures,
+        [
+            Failure(
+                granularity=RuleGranularity.RESOURCE,
+                reason=(
+                    "RoleWithJoinPlaceholder should not allow wildcard, account-wide or root in resource-id "
+                    "like 'arn:aws:iam::12345:root' at 'arn:aws:iam::UNDEFINED_PARAM_AccountId:root'"
+                ),
+                risk_value=RuleRisk.MEDIUM,
+                rule="PartialWildcardPrincipalRule",
+                rule_mode=RuleMode.BLOCKING,
+                actions=None,
+                resource_ids={"RoleWithJoinPlaceholder"},
+                resource_types={"AWS::IAM::Role"},
+            ),
+            Failure(
+                granularity=RuleGranularity.RESOURCE,
+                reason=(
+                    "RoleWithSubPlaceholder should not allow wildcard, account-wide or root in resource-id "
+                    "like 'arn:aws:iam::12345:root' at 'arn:aws:iam::${AccountId}:root'"
+                ),
+                risk_value=RuleRisk.MEDIUM,
+                rule="PartialWildcardPrincipalRule",
+                rule_mode=RuleMode.BLOCKING,
+                actions=None,
+                resource_ids={"RoleWithSubPlaceholder"},
+                resource_types={"AWS::IAM::Role"},
+            ),
+        ],
+    )

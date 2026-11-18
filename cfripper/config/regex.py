@@ -18,12 +18,32 @@ Valid:
 - ?*
 - **
 - arn:aws:iam::*:12345
+- arn:aws:iam::*
+- arn:aws:iam::?
 Invalid:
 - arn:aws:iam::123456789012:root
 - potato
 - arn:aws:iam::123456789012:*
 """
-REGEX_FULL_WILDCARD_PRINCIPAL = re.compile(r"^((\w*:)?[*?]+|arn:aws:iam::[*?]+:.*)$")
+REGEX_FULL_WILDCARD_PRINCIPAL = re.compile(r"^((\w*:)?[*?]+|arn:aws:iam::[*?]+(:.*)?)$")
+
+"""
+Check for principals that could not be fully resolved because a CloudFormation parameter
+(or mapping value) was not provided, e.g. values produced while resolving `Ref`/`Fn::Join`
+(`arn:aws:iam::UNDEFINED_PARAM_AccountId:root`), `Fn::FindInMap`
+(`UNDEFINED_MAPPING_...`) or `Fn::Sub` variables left untouched (`arn:aws:iam::${AccountId}:root`).
+Such principals are treated as wildcard suspects since the missing value is allowed to be anything.
+Valid:
+- arn:aws:iam::UNDEFINED_PARAM_AccountId:root
+- UNDEFINED_PARAM_Principal
+- arn:aws:iam::${AccountId}:root
+- arn:aws:iam::UNDEFINED_MAPPING_Accounts_Top_Second:root
+Invalid:
+- arn:aws:iam::123456789012:root
+- *
+- potato
+"""
+REGEX_UNRESOLVED_PRINCIPAL_PLACEHOLDER = re.compile(r"^.*(UNDEFINED_(?:PARAM|MAPPING)_|\$\{[^}]+\}).*$")
 
 """
 Check for use of wildcard or account-wide principals.

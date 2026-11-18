@@ -52,3 +52,79 @@ def test_rule_supports_filter_config(bad_template, default_allow_all_config):
 
     assert result.valid
     assert compare_lists_of_failures(result.failures, [])
+
+
+def test_suffixless_wildcard_account_in_role_trust_policy_is_flagged():
+    model = get_cfmodel_from("rules/GenericWildcardPrincipalRule/iam_role_trust_suffixless_wildcard.json").resolve()
+    rule = GenericResourceFullWildcardPrincipalRule(None)
+    result = rule.invoke(model)
+
+    assert not result.valid
+    assert compare_lists_of_failures(
+        result.failures,
+        [
+            Failure(
+                granularity=RuleGranularity.RESOURCE,
+                reason=(
+                    "RoleWithSuffixlessWildcardAccount should not allow full wildcard `*`, "
+                    "or wildcard in account ID like `arn:aws:iam::*:12345` at `arn:aws:iam::*`"
+                ),
+                risk_value=RuleRisk.HIGH,
+                rule="GenericResourceFullWildcardPrincipalRule",
+                rule_mode=RuleMode.BLOCKING,
+                actions=None,
+                resource_ids={"RoleWithSuffixlessWildcardAccount"},
+                resource_types={"AWS::IAM::Role"},
+            )
+        ],
+    )
+
+
+def test_unresolved_parameter_placeholders_in_role_trust_policy_are_flagged():
+    model = get_cfmodel_from("rules/GenericWildcardPrincipalRule/iam_role_trust_unresolved_placeholders.json").resolve()
+    rule = GenericResourceFullWildcardPrincipalRule(None)
+    result = rule.invoke(model)
+
+    assert not result.valid
+    assert compare_lists_of_failures(
+        result.failures,
+        [
+            Failure(
+                granularity=RuleGranularity.RESOURCE,
+                reason=(
+                    "RoleWithJoinPlaceholder should not allow full wildcard `*`, "
+                    "or wildcard in account ID like `arn:aws:iam::*:12345` at "
+                    "`arn:aws:iam::UNDEFINED_PARAM_AccountId:root`"
+                ),
+                risk_value=RuleRisk.HIGH,
+                rule="GenericResourceFullWildcardPrincipalRule",
+                rule_mode=RuleMode.BLOCKING,
+                actions=None,
+                resource_ids={"RoleWithJoinPlaceholder"},
+                resource_types={"AWS::IAM::Role"},
+            ),
+            Failure(
+                granularity=RuleGranularity.RESOURCE,
+                reason=(
+                    "RoleWithSubPlaceholder should not allow full wildcard `*`, "
+                    "or wildcard in account ID like `arn:aws:iam::*:12345` at "
+                    "`arn:aws:iam::${AccountId}:root`"
+                ),
+                risk_value=RuleRisk.HIGH,
+                rule="GenericResourceFullWildcardPrincipalRule",
+                rule_mode=RuleMode.BLOCKING,
+                actions=None,
+                resource_ids={"RoleWithSubPlaceholder"},
+                resource_types={"AWS::IAM::Role"},
+            ),
+        ],
+    )
+
+
+def test_resolved_parameter_in_role_trust_policy_is_not_flagged():
+    model = get_cfmodel_from("rules/GenericWildcardPrincipalRule/iam_role_trust_resolved_parameter.json").resolve()
+    rule = GenericResourceFullWildcardPrincipalRule(None)
+    result = rule.invoke(model)
+
+    assert result.valid
+    assert compare_lists_of_failures(result.failures, [])

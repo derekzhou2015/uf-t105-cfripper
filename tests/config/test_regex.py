@@ -11,6 +11,7 @@ from cfripper.config.regex import (
     REGEX_IS_STAR,
     REGEX_PARTIAL_WILDCARD_PRINCIPAL,
     REGEX_STS_ARN,
+    REGEX_UNRESOLVED_PRINCIPAL_PLACEHOLDER,
     REGEX_WILDCARD_ARN,
     REGEX_WILDCARD_POLICY_ACTION,
 )
@@ -28,6 +29,9 @@ from cfripper.config.regex import (
         (REGEX_FULL_WILDCARD_PRINCIPAL, "*?", True),
         (REGEX_FULL_WILDCARD_PRINCIPAL, "*???????*", True),
         (REGEX_FULL_WILDCARD_PRINCIPAL, "arn:aws:iam::*:12345", True),
+        (REGEX_FULL_WILDCARD_PRINCIPAL, "arn:aws:iam::*", True),
+        (REGEX_FULL_WILDCARD_PRINCIPAL, "arn:aws:iam::?", True),
+        (REGEX_FULL_WILDCARD_PRINCIPAL, "arn:aws:iam::**", True),
         (REGEX_FULL_WILDCARD_PRINCIPAL, "arn:aws:iam::444455556666:root", False),
         (REGEX_FULL_WILDCARD_PRINCIPAL, "potato", False),
         (REGEX_FULL_WILDCARD_PRINCIPAL, "arn:aws:iam::123456789012:*", False),
@@ -97,6 +101,18 @@ from cfripper.config.regex import (
         (REGEX_PARTIAL_WILDCARD_PRINCIPAL, "*", False),
         (REGEX_PARTIAL_WILDCARD_PRINCIPAL, "potato", False),
         (REGEX_PARTIAL_WILDCARD_PRINCIPAL, "arn:aws:iam::123456789012:*-role", True),
+        (REGEX_UNRESOLVED_PRINCIPAL_PLACEHOLDER, "arn:aws:iam::UNDEFINED_PARAM_AccountId:root", True),
+        (REGEX_UNRESOLVED_PRINCIPAL_PLACEHOLDER, "UNDEFINED_PARAM_Principal", True),
+        (
+            REGEX_UNRESOLVED_PRINCIPAL_PLACEHOLDER,
+            "arn:aws:iam::UNDEFINED_MAPPING_Accounts_Production_Id:root",
+            True,
+        ),
+        (REGEX_UNRESOLVED_PRINCIPAL_PLACEHOLDER, "arn:aws:iam::${AccountId}:root", True),
+        (REGEX_UNRESOLVED_PRINCIPAL_PLACEHOLDER, "${Principal}", True),
+        (REGEX_UNRESOLVED_PRINCIPAL_PLACEHOLDER, "arn:aws:iam::123456789012:root", False),
+        (REGEX_UNRESOLVED_PRINCIPAL_PLACEHOLDER, "*", False),
+        (REGEX_UNRESOLVED_PRINCIPAL_PLACEHOLDER, "potato", False),
     ],
 )
 def test_regex_cross_account_root(regex, data, valid):

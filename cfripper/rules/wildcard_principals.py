@@ -20,7 +20,11 @@ from pycfmodel.model.resources.s3_bucket_policy import S3BucketPolicy
 from pycfmodel.model.resources.sns_topic_policy import SNSTopicPolicy
 from pycfmodel.model.resources.sqs_queue_policy import SQSQueuePolicy
 
-from cfripper.config.regex import REGEX_FULL_WILDCARD_PRINCIPAL, REGEX_PARTIAL_WILDCARD_PRINCIPAL
+from cfripper.config.regex import (
+    REGEX_FULL_WILDCARD_PRINCIPAL,
+    REGEX_PARTIAL_WILDCARD_PRINCIPAL,
+    REGEX_UNRESOLVED_PRINCIPAL_PLACEHOLDER,
+)
 from cfripper.model.enums import RuleGranularity, RuleRisk
 from cfripper.model.result import Result
 from cfripper.model.utils import get_account_id_from_principal
@@ -62,6 +66,9 @@ class GenericWildcardPrincipalRule(PrincipalCheckingRule):
     GRANULARITY = RuleGranularity.RESOURCE
 
     FULL_REGEX = REGEX_FULL_WILDCARD_PRINCIPAL
+    # Principals that pycfmodel could not fully resolve (e.g. `UNDEFINED_PARAM_X` from a `Ref`/`Fn::Join`
+    # or a leftover `${...}` from `Fn::Sub`) are wildcard suspects: the missing value is allowed to be anything.
+    EXTRA_REGEXES = (REGEX_UNRESOLVED_PRINCIPAL_PLACEHOLDER,)
 
     def invoke(self, cfmodel: CFModel, extras: Optional[Dict] = None) -> Result:
         result = Result()
@@ -104,7 +111,9 @@ class GenericWildcardPrincipalRule(PrincipalCheckingRule):
         extras: Optional[Dict] = None,
     ):
         for statement in resource.statement_as_list():
-            filtered_principals = statement.principals_with(self.FULL_REGEX)
+            filtered_principals = set(statement.principals_with(self.FULL_REGEX))
+            for extra_regex in self.EXTRA_REGEXES:
+                filtered_principals.update(statement.principals_with(extra_regex))
             if statement.Effect == "Allow" and filtered_principals:
                 for principal in filtered_principals:
                     # if we can't find the account ID it might be a canonical ID
